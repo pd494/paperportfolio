@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: stock-portfolio-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  cobra-cli:
+    image: golang:1.17-alpine
+    container_name: cobra-cli
+    volumes:
+      - .:/app
+    working_dir: /app
+    depends_on:
+      - postgres
+    entrypoint: ["tail", "-f", "/dev/null"]  # Keeps the container running
+
+volumes:
+  postgres-data:
