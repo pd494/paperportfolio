@@ -1,1 +1,3 @@
-#Paper Portfolio Trader CLI in Go
+# **README.md**
+
+Paper Trader CLI in Golang
