@@ -11,24 +11,22 @@ type UserModel struct{
 	gorm.Model
 	Username string `gorm:"primarykey"`
 	Password string 
-	Balance float32
-
+	Stocks []Stock `gorm:"foreignKey:UserID"`
+	Balance float64  
+	NetGain float32 
 
 }
-
 
 type Stock struct{
-	Ticker string
-	Name string
-	Price float32
-	MarketCap float32
+	gorm.Model
+	UserID        uint    // Foreign key
+	Ticker string 
+	TotalWorth float64
+	AveragePrice float64
+	QuantityOwned float64
+	Gain float32
+
 
 }
 
-func NewUser(uname string, pword string)* UserModel{
-	return &UserModel{
-		Username: uname,
-		Password: pword,
-	}
 
-}
