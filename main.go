@@ -114,7 +114,7 @@ var registerCmd = &cobra.Command{
 		newUser:= database.RegisterUser(username, string(passwd), investment)
 		if newUser != nil{
 			currUser = newUser
-			fmt.Println(Green + "Success! New account has been created");
+			fmt.Println(Green + "Success! New account has been created" + Reset);
 
 		}
 	},
