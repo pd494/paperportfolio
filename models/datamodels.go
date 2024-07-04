@@ -13,7 +13,7 @@ type UserModel struct{
 	Password string 
 	Stocks []Stock `gorm:"foreignKey:UserID"`
 	Balance float64  
-	NetGain float32 
+	NetGain float64 
 
 }
 

@@ -21,6 +21,9 @@ var Reset = "\033[0m"
 var Cyan = "\033[36m"
 var Green = "\033[32m"
 
+func GetDB() *gorm.DB{
+	return db
+}
 func DBInit() {
 
 	err := godotenv.Load("/Users/prasanthdendukuri/Projects/stockportfolio/.env")
@@ -109,10 +112,11 @@ func BuyStock(quantity float64, ticker string, user *models.UserModel, res finnh
 
 		for i := range *stocks {
 			if (*stocks)[i].Ticker == ticker {
+				(*stocks)[i].AveragePrice = (((*stocks)[i].AveragePrice * (*stocks)[i].QuantityOwned) + (price * quantity)) / ((*stocks)[i].QuantityOwned + quantity)
+
 				(*stocks)[i].QuantityOwned += quantity
 				(*stocks)[i].TotalWorth += quantity * price
 
-				// Deduct balance from the user
 				user.Balance -= quantity * price
 
 				if err := db.Save(user).Error; err != nil {
@@ -127,13 +131,12 @@ func BuyStock(quantity float64, ticker string, user *models.UserModel, res finnh
 
 				fmt.Println(Green, "Transaction successful!", Blue)
 				fmt.Println("Balance remaining:", user.Balance)
-				PrintPortfolio("pmoney")
+				fmt.Print(Reset)
 				return
 			}
 		}
 
-		//check if this user has a stock with ticker ticker
-		// t := reflect.TypeOf(s)
+
 
 		newStock := models.Stock{
 			Ticker:        ticker,
@@ -153,7 +156,6 @@ func BuyStock(quantity float64, ticker string, user *models.UserModel, res finnh
 		fmt.Println(Green, "Transaction succesful!")
 		fmt.Println("Balance remaining:", user.Balance)
 		fmt.Print(Blue)
-		PrintPortfolio("pmoney")
 
 	}
 
@@ -163,8 +165,60 @@ func PrintPortfolio(username string) {
 	var user models.UserModel
 	db.Where("username = ?", username).Preload("Stocks").First(&user)
 
-	fmt.Println("Portfolio:")
+	fmt.Println(Cyan, "Portfolio:")
 	for _, stock := range user.Stocks {
-		fmt.Printf("Ticker: %s, Quantity: %.2f, Total Worth: %.2f, Average Price: %.2f\n", stock.Ticker, stock.QuantityOwned, stock.TotalWorth, stock.AveragePrice)
+		fmt.Printf("Ticker: %s, Quantity: %.2f, Total Worth: %.2f, Average Price: %.2f, Gain: %.2f\n", stock.Ticker, stock.QuantityOwned, stock.TotalWorth, stock.AveragePrice, stock.Gain)
 	}
+	fmt.Print(Reset)
+}
+
+
+func SellStock(quantity float64, ticker string, user *models.UserModel, res finnhub.Quote) {
+	price := float64(*res.C)
+
+	if err := db.Where("username = ?", user.Username).Preload("Stocks").First(&user).Error; err != nil {
+		fmt.Println(Red + "Failed to fetch user's stocks:", err)
+		return
+	}
+
+	var stock models.Stock
+	found := false
+	for i := range user.Stocks {
+		if user.Stocks[i].Ticker == ticker {
+			stock = user.Stocks[i]
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		fmt.Println(Red + "Stock not found in portfolio:" + ticker)
+		return
+	}
+
+	if stock.QuantityOwned < quantity {
+		fmt.Println(Red + "Not enough quantity to sell:" + ticker)
+		return
+	}
+
+	gain := (quantity * price) - (quantity * stock.AveragePrice)
+	stock.Gain += float32(gain)
+
+	stock.QuantityOwned -= quantity
+	stock.TotalWorth -= quantity * price
+	user.Balance += quantity * price
+
+	if err := db.Save(user).Error; err != nil {
+		fmt.Println(Red, "Failed to save user balance:", err)
+		return
+	}
+
+	if err := db.Save(&stock).Error; err != nil {
+		fmt.Println(Red, "Failed to save stock:", err)
+		return
+	}
+
+	fmt.Println(Green, "Transaction successful!", Blue)
+	fmt.Println("Balance remaining:", user.Balance)
+	fmt.Print(Reset)
 }

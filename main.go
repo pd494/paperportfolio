@@ -4,17 +4,16 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	_ "os/user"
 	"strings"
 
-	"github.com/spf13/cobra"
-	"github.com/howeyc/gopass"
+	"stock-portfolio-cli/api"
 	"stock-portfolio-cli/database"
 	"stock-portfolio-cli/models"
-	"stock-portfolio-cli/api"
-	 "strconv"
+	"strconv"
 
-
-
+	"github.com/howeyc/gopass"
+	"github.com/spf13/cobra"
 )
 
 var loggedIn bool = false
@@ -141,6 +140,8 @@ var loginCmd = &cobra.Command{
 			fmt.Println(Green + "Login successful!")
 			fmt.Println(Green,"Username:",currUser.Username,"\n", "Balance:",currUser.Balance)
 			fmt.Print(Reset)
+			go api.NetGain(currUser)
+
 		} else {
 			fmt.Println(Red + "Login failed: Incorrect username or password" + Reset)
 		}
@@ -175,16 +176,29 @@ var buyCmd = &cobra.Command{
 }
 
 var sellCmd = &cobra.Command{
-	Use:   "sell [stock]",
+	Use:   "sell [stock] [quantity]",
 	Short: "Sell a stock",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		if (!loggedIn) {
+		if !loggedIn {
 			fmt.Println("You need to be logged in to sell stocks.")
 			return
 		}
+
 		stock := args[0]
-		fmt.Printf("Selling stock: %s\n", stock)
+		quantity, err := strconv.ParseFloat(args[1], 64)
+		if err != nil {
+			fmt.Println(Red + "Quantity must be a valid number")
+			return
+		}
+
+		result, err := api.GetCurrentPrice(stock)
+		if err != nil {
+			fmt.Println(Red + "Failed to get current price for " + stock + Reset)
+			return
+		}
+
+		database.SellStock(quantity, stock, currUser, result)
 	},
 }
 
@@ -196,8 +210,7 @@ var portfolioCmd = &cobra.Command{
 			fmt.Println("You need to be logged in to view your portfolio.")
 			return
 		}
-		fmt.Println("Viewing portfolio:")
-		// Implement logic to view the user's portfolio
+		database.PrintPortfolio(currUser.Username)
 	},
 }
 
@@ -218,6 +231,7 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+
 
 	// Start continuous input loop
 	fmt.Println("> ")
